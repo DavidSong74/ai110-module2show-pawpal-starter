@@ -4,8 +4,13 @@
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+I designed five classes:
+
+- **`Owner`** — stores name and available time per day; owns one or more pets.
+- **`Pet`** — stores name and species; holds a list of tasks.
+- **`Task`** — stores title, duration (minutes), and priority (low/medium/high).
+- **`Scheduler`** — takes an owner and task list, filters/sorts by priority and time, and produces a plan.
+- **`DailyPlan`** — the output: an ordered list of scheduled tasks with brief reasoning for each.
 
 **b. Design changes**
 
