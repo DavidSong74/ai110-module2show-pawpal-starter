@@ -1,3 +1,5 @@
+Review the diagram. Ensure relationships (like "Owner has Pets") make sense and that you haven't included unnecessary complexity.
+
 # PawPal+ Project Reflection
 
 ## 1. System Design
@@ -6,16 +8,21 @@
 
 I designed five classes:
 
-- **`Owner`** — stores name and available time per day; owns one or more pets.
-- **`Pet`** — stores name and species; holds a list of tasks.
-- **`Task`** — stores title, duration (minutes), and priority (low/medium/high).
-- **`Scheduler`** — takes an owner and task list, filters/sorts by priority and time, and produces a plan.
-- **`DailyPlan`** — the output: an ordered list of scheduled tasks with brief reasoning for each.
+- **`Owner`** — stores name and daily available time (minutes); owns one or more pets.
+- **`Pet`** — stores name and species; holds a list of tasks assigned to that pet.
+- **`Task`** — stores title, duration (minutes), priority (low/medium/high), and optional notes; knows whether it is high priority.
+- **`Scheduler`** — takes an owner, walks the owner→pet→task chain, sorts by priority, filters to fit the time budget, and produces a `DailyPlan`.
+- **`DailyPlan`** — the output: an ordered list of scheduled tasks, total duration, and a reasoning note for each task.
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+Yes, the design changed in three ways after reviewing the skeleton:
+
+1. **`Scheduler` no longer holds a `tasks` list.** The initial design stored tasks directly on the scheduler, but tasks already live on `Pet` which belongs to `Owner`. Keeping a separate list would require syncing two sources of truth. I removed it and had `Scheduler` walk `owner → pet → tasks` instead.
+
+2. **`Priority` became an enum.** The initial design used raw strings (`"low"`, `"medium"`, `"high"`), which are easy to mistype and hard to sort. Switching to `Priority(Enum)` with integer values (`LOW=1`, `MEDIUM=2`, `HIGH=3`) made sorting natural and caught typos at assignment time.
+
+3. **`DailyPlan.total_duration` became a computed property.** Storing it as a plain `int` risked going stale if tasks were added without updating it. Making it a `@property` that sums `scheduled_tasks` on demand means it's always accurate.
 
 ---
 
