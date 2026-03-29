@@ -22,24 +22,25 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Features
+
+- Sorted daily schedule view by task time
+- Overlap conflict warnings for same-pet task collisions
+- Recurring task support (`once`, `daily`, `weekly`) with auto-generated next occurrences
+- Task filtering by pet, completion status, and priority
+- Priority-aware task ordering (`high`, `medium`, `low`)
+- Upcoming task view (next 7 days by default)
+- Strong input validation for time, priority, and recurrence values
+- Human-readable daily summary output
+
 ## Smarter Scheduling
 
-The scheduler goes beyond a simple task list. Key algorithmic features built into `pawpal_system.py`:
+The scheduler uses a few key algorithmic choices in `pawpal_system.py`:
 
-**Time-aware sorting**
-Tasks are sorted by converting `"HH:MM"` strings to total minutes since midnight (`start_minutes()`), making the sort correct for all valid 24-hour times rather than relying on string comparison.
-
-**Overlap-aware conflict detection**
-`detect_conflicts()` uses a standard interval-overlap test — `a.start < b.end AND b.start < a.end` — to catch tasks that collide even when they don't share an exact start time (e.g. a 30-minute walk at 07:00 conflicts with feeding at 07:20). Tasks are sorted first so the inner loop can exit early once no further overlap is possible.
-
-**Flexible filtering**
-`filter_tasks()` accepts any combination of `pet_name`, `completed`, and `priority`, letting the UI show exactly the slice a user needs without fetching all tasks.
-
-**Automatic recurrence**
-Marking a `daily` or `weekly` task complete automatically spawns the next occurrence (`due_date + timedelta(days=1)` or `timedelta(weeks=1)`) and adds it to the correct pet's task list — no manual re-entry required.
-
-**Input validation**
-`Task.__post_init__` rejects malformed data at construction time: times must be zero-padded `HH:MM`, priority must be `low/medium/high`, and frequency must be `once/daily/weekly`.
+- Time sorting is based on numeric minutes (`start_minutes()`) rather than raw string comparison.
+- Conflict detection uses interval overlap (`a.start < b.end` and `b.start < a.end`) after sorting, with an early break for efficiency.
+- Recurrence is modeled at the task level (`Task.mark_complete()`), while scheduler orchestration (`Scheduler.mark_task_complete()`) attaches the next task to the right pet.
+- Validation happens at object creation in `Task.__post_init__`, preventing invalid schedule state from entering the system.
 
 ## Getting started
 
@@ -54,32 +55,16 @@ pip install -r requirements.txt
 ### Suggested workflow
 
 1. Read the scenario carefully and identify requirements and edge cases.
-        
-        Owner
+   Final architecture in this implementation:
+   - `Owner`: stores owner identity and pet collection, provides all-task access.
+   - `Pet`: stores pet profile and its task list.
+   - `Task`: stores scheduling details and recurrence/completion behavior.
+   - `Scheduler`: performs sorting, filtering, conflict detection, upcoming views, summaries, and recurrence orchestration.
 
-        Attributes: name, available_minutes (time budget for the day)
-        Methods: add_pet(), get_pets()
-        Pet
-
-        Attributes: name, species, tasks (list of Task)
-        Methods: add_task(), remove_task(), get_tasks()
-        Task
-
-        Attributes: title, duration_minutes, priority (low/medium/high), notes (optional)
-        Methods: is_high_priority(), __repr__()
-        Scheduler
-
-        Attributes: owner, tasks
-        Methods: generate_plan() → returns a DailyPlan; _filter_by_time(), _sort_by_priority()
-        DailyPlan
-
-        Attributes: scheduled_tasks (list of Task), total_duration, reasoning (dict mapping task → reason string)
-        Methods: add_task(), summarize(), display()
-        Key relationships:
-
-        Owner → has → Pet(s)
-        Pet → has → Task(s)
-        Scheduler → consumes Owner + Tasks → produces DailyPlan -->
+   Core relationships:
+   - `Owner` has many `Pet` objects.
+   - `Pet` has many `Task` objects.
+   - `Scheduler` uses `Owner` data and coordinates `Task`/`Pet` interactions.
 
 2. Draft a UML diagram (classes, attributes, methods, relationships).
 3. Convert UML into Python class stubs (no logic yet).
@@ -104,3 +89,7 @@ Current tests cover core scheduler reliability checks, including:
 Confidence Level: ★★★★☆ (4/5)
 
 Reasoning: All current tests pass (8 passed), and they exercise the most important happy paths plus key edge cases in sorting, recurrence, and conflict detection. Additional confidence could come from more boundary-time and multi-pet conflict scenarios.
+
+## 📸 Demo
+
+![PawPal App](Screenshot1.jpg)

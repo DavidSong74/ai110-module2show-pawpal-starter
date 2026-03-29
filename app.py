@@ -172,6 +172,14 @@ def main() -> None:
     scheduler = Scheduler(owner)
     active: str | None = st.session_state.active_pet
 
+    def get_view_tasks_for_today() -> list[Task]:
+        """Return today's tasks in active scope, sorted chronologically."""
+        if active:
+            scoped = scheduler.filter_tasks(pet_name=active)
+            todays_scoped = [t for t in scoped if t.due_date == today]
+            return scheduler.sort_by_time(todays_scoped)
+        return scheduler.get_todays_schedule()
+
     # Header
     today = date.today()
     st.markdown(
@@ -206,11 +214,7 @@ def main() -> None:
         st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
 
         # Stats
-        today_tasks_all = scheduler.get_todays_schedule()
-        view_tasks = (
-            [t for t in today_tasks_all if t.pet_name == active]
-            if active else today_tasks_all
-        )
+        view_tasks = get_view_tasks_for_today()
         done_count = sum(1 for t in view_tasks if t.completed)
         total_count = len(view_tasks)
         mins_left = sum(
@@ -283,6 +287,10 @@ def main() -> None:
     with mid:
         st.markdown('<div class="col-label">Today</div>', unsafe_allow_html=True)
 
+        view_tasks = get_view_tasks_for_today()
+        done_count = sum(1 for t in view_tasks if t.completed)
+        total_count = len(view_tasks)
+
         must_do = [
             t for t in view_tasks if not t.completed and t.priority == "high"
         ]
@@ -294,26 +302,47 @@ def main() -> None:
 
         # Banner
         conflicts = scheduler.detect_conflicts()
+        if active:
+            conflicts = [c for c in conflicts if f"for {active}" in c]
+
         if conflicts:
-            for conflict in conflicts:
-                st.markdown(
-                    f'<div class="warn-banner">⚠️ {conflict}</div>',
-                    unsafe_allow_html=True,
-                )
+            scope_label = active if active else "all pets"
+            st.warning(
+                "Potential scheduling conflicts detected for "
+                f"{scope_label}. Consider moving one overlapping task by 10-15 minutes."
+            )
+            for index, conflict in enumerate(conflicts, start=1):
+                st.write(f"{index}. {conflict}")
         elif total_count > 0 and done_count == total_count:
             pet_name = active if active else "your pets"
-            st.markdown(
-                f'<div class="stress-banner">✅ You\'ve covered all the essentials'
-                f' for <b>{pet_name}</b> today. Great job!</div>',
-                unsafe_allow_html=True,
+            st.success(
+                f"You've covered all essentials for {pet_name} today. Great job!"
             )
         elif done_count > 0 and not must_do:
             pet_name = active if active else "your pets"
+            st.success(
+                f"Non-negotiables are done for {pet_name}. Only nice-to-haves remain."
+            )
+
+        if view_tasks:
             st.markdown(
-                f'<div class="stress-banner">✅ Non-negotiables done for'
-                f' <b>{pet_name}</b>. Only nice-to-haves remain.</div>',
+                '<div class="section-title">📋 Sorted task view</div>',
                 unsafe_allow_html=True,
             )
+            st.table([
+                {
+                    "Time": t.time,
+                    "Pet": t.pet_name,
+                    "Task": t.title,
+                    "Priority": t.priority,
+                    "Frequency": t.frequency,
+                    "Duration (min)": t.duration_minutes,
+                    "Status": "Done" if t.completed else "Open",
+                }
+                for t in view_tasks
+            ])
+        else:
+            st.info("No tasks scheduled for this selection today.")
 
         # Non-negotiables
         st.markdown(

@@ -3,43 +3,54 @@
 ```mermaid
 classDiagram
     class Owner {
-        +String name
-        +int available_minutes
+        +name: str
+        +pets: list~Pet~
         +add_pet(pet: Pet)
+        +get_pet(name: str) Pet?
+        +get_all_tasks() list~Task~
     }
 
     class Pet {
-        +String name
-        +String species
+        +name: str
+        +species: str
+        +tasks: list~Task~
         +add_task(task: Task)
+        +get_tasks() list~Task~
+        +get_incomplete_tasks() list~Task~
     }
 
     class Task {
-        +String title
-        +int duration_minutes
-        +String priority
-        +String notes
+        +title: str
+        +time: str
+        +duration_minutes: int
+        +priority: str
+        +frequency: str
+        +pet_name: str
+        +completed: bool
+        +due_date: date
+        +__post_init__()
+        +start_minutes() int
+        +end_minutes() int
+        +overlaps(other: Task) bool
+        +mark_complete() Task?
         +is_high_priority() bool
     }
 
     class Scheduler {
-        +Owner owner
-        +generate_plan() DailyPlan
-        -_sort_by_priority() List~Task~
-        -_filter_by_time() List~Task~
-    }
-
-    class DailyPlan {
-        +List~Task~ scheduled_tasks
-        +int total_duration
-        +Dict reasoning
-        +add_task(task: Task, reason: String)
-        +summarize() String
+        +owner: Owner
+        +get_todays_schedule() list~Task~
+        +sort_by_time(tasks: list~Task~) list~Task~
+        +filter_tasks(pet_name: str?, completed: bool?, priority: str?) list~Task~
+        +detect_conflicts() list~str~
+        +sort_by_priority(tasks: list~Task~) list~Task~
+        +get_upcoming_tasks(days: int = 7) list~Task~
+        +daily_summary() str
+        +mark_task_complete(task: Task)
     }
 
     Owner "1" --> "1..*" Pet : owns
     Pet "1" --> "0..*" Task : has
-    Scheduler --> Owner : uses
-    Scheduler --> DailyPlan : produces
-    DailyPlan --> Task : contains
+    Scheduler "1" --> "1" Owner : uses
+    Scheduler ..> Task : sorts/filters
+    Scheduler ..> Pet : adds recurring task
 ```
