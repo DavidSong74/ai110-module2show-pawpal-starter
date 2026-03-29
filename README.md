@@ -87,3 +87,20 @@ pip install -r requirements.txt
 5. Add tests to verify key behaviors.
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
+
+## Testing PawPal+
+
+Run the automated test suite with:
+
+python -m pytest
+
+Current tests cover core scheduler reliability checks, including:
+- Task completion state changes and recurrence behavior (`once` vs `daily`)
+- Pet task-list behavior when adding one or multiple tasks
+- Sorting correctness for daily schedules in chronological time order
+- Recurrence logic through `Scheduler.mark_task_complete()` creating the next-day task for daily tasks
+- Conflict detection when two tasks share duplicate start times for the same pet
+
+Confidence Level: ★★★★☆ (4/5)
+
+Reasoning: All current tests pass (8 passed), and they exercise the most important happy paths plus key edge cases in sorting, recurrence, and conflict detection. Additional confidence could come from more boundary-time and multi-pet conflict scenarios.
