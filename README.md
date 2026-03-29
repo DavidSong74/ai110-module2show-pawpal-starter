@@ -22,6 +22,25 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Smarter Scheduling
+
+The scheduler goes beyond a simple task list. Key algorithmic features built into `pawpal_system.py`:
+
+**Time-aware sorting**
+Tasks are sorted by converting `"HH:MM"` strings to total minutes since midnight (`start_minutes()`), making the sort correct for all valid 24-hour times rather than relying on string comparison.
+
+**Overlap-aware conflict detection**
+`detect_conflicts()` uses a standard interval-overlap test — `a.start < b.end AND b.start < a.end` — to catch tasks that collide even when they don't share an exact start time (e.g. a 30-minute walk at 07:00 conflicts with feeding at 07:20). Tasks are sorted first so the inner loop can exit early once no further overlap is possible.
+
+**Flexible filtering**
+`filter_tasks()` accepts any combination of `pet_name`, `completed`, and `priority`, letting the UI show exactly the slice a user needs without fetching all tasks.
+
+**Automatic recurrence**
+Marking a `daily` or `weekly` task complete automatically spawns the next occurrence (`due_date + timedelta(days=1)` or `timedelta(weeks=1)`) and adds it to the correct pet's task list — no manual re-entry required.
+
+**Input validation**
+`Task.__post_init__` rejects malformed data at construction time: times must be zero-padded `HH:MM`, priority must be `low/medium/high`, and frequency must be `once/daily/weekly`.
+
 ## Getting started
 
 ### Setup
@@ -35,6 +54,33 @@ pip install -r requirements.txt
 ### Suggested workflow
 
 1. Read the scenario carefully and identify requirements and edge cases.
+        
+        Owner
+
+        Attributes: name, available_minutes (time budget for the day)
+        Methods: add_pet(), get_pets()
+        Pet
+
+        Attributes: name, species, tasks (list of Task)
+        Methods: add_task(), remove_task(), get_tasks()
+        Task
+
+        Attributes: title, duration_minutes, priority (low/medium/high), notes (optional)
+        Methods: is_high_priority(), __repr__()
+        Scheduler
+
+        Attributes: owner, tasks
+        Methods: generate_plan() → returns a DailyPlan; _filter_by_time(), _sort_by_priority()
+        DailyPlan
+
+        Attributes: scheduled_tasks (list of Task), total_duration, reasoning (dict mapping task → reason string)
+        Methods: add_task(), summarize(), display()
+        Key relationships:
+
+        Owner → has → Pet(s)
+        Pet → has → Task(s)
+        Scheduler → consumes Owner + Tasks → produces DailyPlan -->
+
 2. Draft a UML diagram (classes, attributes, methods, relationships).
 3. Convert UML into Python class stubs (no logic yet).
 4. Implement scheduling logic in small increments.

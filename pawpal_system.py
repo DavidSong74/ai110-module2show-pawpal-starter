@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Optional
+
+VALID_PRIORITIES = {"low", "medium", "high"}
+VALID_FREQUENCIES = {"once", "daily", "weekly"}
+_TIME_RE = re.compile(r"^\d{2}:\d{2}$")
 
 
 @dataclass
@@ -16,6 +21,34 @@ class Task:
     pet_name: str
     completed: bool = False
     due_date: date = field(default_factory=date.today)
+
+    def __post_init__(self) -> None:
+        """Validate time format, priority, and frequency on creation."""
+        if not _TIME_RE.match(self.time):
+            raise ValueError(
+                f"time must be HH:MM (zero-padded 24h), got: {self.time!r}"
+            )
+        if self.priority not in VALID_PRIORITIES:
+            raise ValueError(
+                f"priority must be one of {VALID_PRIORITIES}, got: {self.priority!r}"
+            )
+        if self.frequency not in VALID_FREQUENCIES:
+            raise ValueError(
+                f"frequency must be one of {VALID_FREQUENCIES}, got: {self.frequency!r}"
+            )
+
+    def start_minutes(self) -> int:
+        """Return the task's start time as total minutes since midnight."""
+        h, m = self.time.split(":")
+        return int(h) * 60 + int(m)
+
+    def end_minutes(self) -> int:
+        """Return the task's end time as total minutes since midnight."""
+        return self.start_minutes() + self.duration_minutes
+
+    def overlaps(self, other: "Task") -> bool:
+        """Return True if this task's time interval overlaps with another's."""
+        return self.start_minutes() < other.end_minutes() and other.start_minutes() < self.end_minutes()
 
     def mark_complete(self) -> Optional["Task"]:
         """Mark complete; return next Task if recurring, else None."""
@@ -101,32 +134,43 @@ class Scheduler:
         return self.sort_by_time(todays)
 
     def sort_by_time(self, tasks: list[Task]) -> list[Task]:
-        """Sort tasks chronologically using 'HH:MM' string comparison."""
-        return sorted(tasks, key=lambda t: t.time)
+        """Sort tasks chronologically by start time in minutes since midnight."""
+        return sorted(tasks, key=lambda t: t.start_minutes())
 
     def filter_tasks(
         self,
         pet_name: Optional[str] = None,
         completed: Optional[bool] = None,
+        priority: Optional[str] = None,
     ) -> list[Task]:
-        """Filter by pet name and/or completion status."""
+        """Filter tasks by pet name, completion status, and/or priority."""
         tasks = self.owner.get_all_tasks()
         if pet_name is not None:
             tasks = [t for t in tasks if t.pet_name == pet_name]
         if completed is not None:
             tasks = [t for t in tasks if t.completed == completed]
+        if priority is not None:
+            tasks = [t for t in tasks if t.priority == priority]
         return tasks
 
     def detect_conflicts(self) -> list[str]:
-        """Return warning strings for tasks on the same pet at the same time."""
-        groups: dict[tuple[str, str], list[str]] = defaultdict(list)
+        """Return warnings for tasks on the same pet whose time intervals overlap."""
+        by_pet: dict[str, list[Task]] = defaultdict(list)
         for task in self.owner.get_all_tasks():
-            groups[(task.pet_name, task.time)].append(task.title)
+            by_pet[task.pet_name].append(task)
+
         conflicts = []
-        for (pet, time), titles in groups.items():
-            if len(titles) > 1:
-                names = " & ".join(f'"{t}"' for t in titles)
-                conflicts.append(f"Conflict: {names} at {time} for {pet}")
+        for pet_name, tasks in by_pet.items():
+            tasks = self.sort_by_time(tasks)
+            for i, task_a in enumerate(tasks):
+                for task_b in tasks[i + 1:]:
+                    if not task_a.overlaps(task_b):
+                        break  # sorted by time — no later task can overlap either
+                    conflicts.append(
+                        f'Conflict: "{task_a.title}" ({task_a.time},'
+                        f' {task_a.duration_minutes}min) overlaps'
+                        f' "{task_b.title}" ({task_b.time}) for {pet_name}'
+                    )
         return conflicts
 
     def sort_by_priority(self, tasks: list[Task]) -> list[Task]:

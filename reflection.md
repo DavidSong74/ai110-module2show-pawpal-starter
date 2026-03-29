@@ -35,8 +35,11 @@ Yes, the design changed in three ways after reviewing the skeleton:
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+The scheduler's `detect_conflicts` method uses a sorted nested-loop with an early `break` rather than checking every possible task pair.
+
+**The tradeoff:** Once tasks are sorted by start time, the inner loop stops as soon as it finds a task that does not overlap with the current one — because no later task (with an even later start) can overlap either. This is O(n) in the best case but skips valid pairs if an out-of-order edge case were ever introduced. A simpler `itertools.combinations` approach would check every pair exhaustively (always O(n²)) and would be easier to read, but has no early exit.
+
+**Why it is reasonable:** For a pet-care app, most days have 5–15 tasks. At that scale the performance difference is negligible. However, the early-break version was kept because it encodes a meaningful guarantee — that the list is sorted — directly into the algorithm's control flow. This makes the invariant explicit rather than hidden. The tradeoff accepted is slightly more complex loop logic in exchange for both better performance and a self-documenting sort dependency.
 
 ---
 
